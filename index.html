@@ -318,7 +318,7 @@ var R_COLORS=['#6366f1','#0891b2','#d97706','#059669','#dc2626','#7c3aed','#ea58
 var R_ANALYSIS={'西欧':{s:'德法英为核心市场，2024年后大幅下滑',t:'2023年达峰后断崖式下跌，补贴退坡+竞争双重打击',f:[{n:'德国市场',i:'高',d:'2023年补贴取消后销量腰斩'},{n:'法国市场',i:'高',d:'2024年补贴政策调整，竞争力下降'},{n:'英国市场',i:'中',d:'相对稳定，但增长乏力'},{n:'竞争加剧',i:'高',d:'大众、宝马、奔驰电动车型密集上市'}]},'北欧':{s:'挪威为传统优势市场，瑞典丹麦波动',t:'2023年达峰后下滑，但挪威韧性较强',f:[{n:'挪威市场',i:'高',d:'电动化渗透率全球最高，特斯拉保持优势'},{n:'瑞典市场',i:'中',d:'2023年达峰后下滑，本土品牌竞争'},{n:'丹麦市场',i:'中',d:'与瑞典类似趋势'},{n:'芬兰市场',i:'低',d:'基数较小，波动较大'}]},'南欧':{s:'西班牙意大利为主，2023年爆发后回落',t:'2023年爆发后进入调整期',f:[{n:'西班牙市场',i:'高',d:'2023年爆发后趋于稳定'},{n:'意大利市场',i:'中',d:'与西班牙类似趋势'},{n:'葡萄牙市场',i:'低',d:'基数较小，增长稳定'},{n:'补贴政策',i:'中',d:'各国补贴力度不一'}]},'东欧':{s:'土耳其为新增长引擎，波兰捷克稳步增长',t:'逆势增长，土耳其成为新增长极',f:[{n:'土耳其市场',i:'高',d:'2023年起爆发式增长，成为区域第一'},{n:'波兰市场',i:'中',d:'稳步增长，电动化渗透率提升'},{n:'捷克市场',i:'中',d:'2024年快速增长'},{n:'俄罗斯市场',i:'低',d:'地缘政治影响，销量萎缩'}]},'亚太':{s:'中国市场主导占区域90%+，韩国快速增长',t:'2023年达峰后平台期，中国份额被本土品牌蚕食',f:[{n:'中国市场',i:'高',d:'2023年达峰后连续两年下滑，竞争加剧'},{n:'韩国市场',i:'中',d:'2024年起快速增长，Model Y本土化推动'},{n:'日本市场',i:'低',d:'稳步增长，但基数较小'},{n:'东南亚',i:'中',d:'泰国、新加坡、菲律宾新兴市场贡献增量'}]},'北美':{s:'美国市场为核心占比超90%，2023年后持续下滑',t:'2023年达峰后持续下滑，市场进入成熟期',f:[{n:'美国市场',i:'高',d:'2023年达峰后连续下滑，利率上升抑制需求'},{n:'加拿大市场',i:'中',d:'与美国同步下滑，但降幅较小'},{n:'政策因素',i:'高',d:'IRA补贴政策变化影响竞争力'},{n:'竞争格局',i:'中',d:'传统车企电动化加速'}]},'中东':{s:'以色列+阿联酋双引擎，2024年起快速放量',t:'新兴市场潜力大，增速显著',f:[{n:'以色列市场',i:'高',d:'2021年起快速增长，2024年达峰'},{n:'阿联酋市场',i:'中',d:'2024年起量，高端市场接受度高'},{n:'沙特市场',i:'低',d:'2025年新增市场，潜力待释放'}]},'南美':{s:'市场渗透率极低，巴西智利为主',t:'处于市场导入期，增长潜力大但制约因素多',f:[{n:'巴西市场',i:'低',d:'2024年起量，但基数极小'},{n:'智利市场',i:'低',d:'2024年起量，基数小'},{n:'政策环境',i:'中',d:'进口关税高，本地化生产待推进'}]}};
 
 // ========== STATE ==========
-var view=0,sel=null,chart=null,_clickTs=0,currentView='map',selBank=null;
+var view=0,sel=null,chart=null,_clickTs=0,currentView='map',selBank=null,_lastToggle='';
 
 // ========== HELPERS ==========
 function findByName(cn){return DATA.find(function(d){return d.n===cn})}
@@ -329,7 +329,13 @@ function peakYear(c){if(!SD[c])return'';var mx=0,mi=0;SD[c].forEach(function(v,i
 function yoy(c){if(!SD[c]||!SD[c][4]||SD[c][4]===0)return null;return((SD[c][5]-SD[c][4])/SD[c][4]*100).toFixed(1)}
 function rTotal(r){return RT[r]?RT[r].reduce(function(a,b){return a+b},0):0}
 function rArr(r){return RT[r]||[0,0,0,0,0,0]}
-function toggleCountry(name){var now=Date.now();if(sel&&sel.n===name){if(now-_clickTs>650)showOverview();_clickTs=now;return}var d=findByName(name);if(!d&&hasSales(name)){d={n:name,r:'EU',p:[],pr:[]};for(var r in REGIONS){if(REGIONS[r].indexOf(name)>=0){if(r==='西欧'||r==='北欧'||r==='南欧'||r==='东欧')d.r='EU';else d.r='AP';break}}}if(d)showDetail(d);_clickTs=now}
+function toggleCountry(name){var now=Date.now();
+  // 防抖：650ms 内对"同一个国家"的重复点击一律忽略（防止双击在进入/退出间反复抵消、永远退不出）。
+  // 切换到不同国家不受锁影响，立即响应。锁基于 name+时间戳，不依赖 sel（退出会清空 sel，旧逻辑因此自相矛盾）。
+  if(name===_lastToggle&&now-_clickTs<650){_clickTs=now;return}
+  _lastToggle=name;_clickTs=now;
+  if(sel&&sel.n===name){showOverview();return}
+  var d=findByName(name);if(!d&&hasSales(name)){d={n:name,r:'EU',p:[],pr:[]};for(var r in REGIONS){if(REGIONS[r].indexOf(name)>=0){if(r==='西欧'||r==='北欧'||r==='南欧'||r==='东欧')d.r='EU';else d.r='AP';break}}}if(d)showDetail(d)}
 
 // ========== MAP ==========
 function initMap(){
