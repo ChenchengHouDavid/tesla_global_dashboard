@@ -348,6 +348,10 @@ function initMap(){
     if(p.componentType==='series'&&p.data&&p.data.cn)name=p.data.cn;
     else if(p.componentType==='geo'){if(G2C[p.name])name=G2C[p.name];else{for(var cn in S_C2G){if(S_C2G[cn]===p.name){name=cn;break}}}}
     if(name)toggleCountry(name)});
+  // Re-render dots once the geo transform settles after zoom/pan. Reading api.coord()
+  // during an in-flight georoam can yield an intermediate (wrong) matrix → dot misalignment.
+  // Debouncing a full renderDots() after roam guarantees a final render against a stable matrix.
+  chart.on('georoam',function(){clearTimeout(chart._dotTimer);chart._dotTimer=setTimeout(function(){if(currentView==='map')renderDots();},90);});
   // Hover tooltip for 其他银行 dots: hit-test cursor against the registered gray-dot positions
   var tip=document.getElementById('dotTip');
   chart.getZr().on('mousemove',function(e){
@@ -493,7 +497,7 @@ function showDetail(d){
     else if(hasFin(c))regs.push({name:g2,itemStyle:{areaColor:'#151d2e',borderColor:'#1e2d44',borderWidth:0.3}});
     else regs.push({name:g2,itemStyle:{areaColor:'#0f1624',borderColor:'#151d2e',borderWidth:0.2}})}
     chart.setOption({geo:[{regions:regs}]})}
-  renderDots(); // refresh dots so the selected country reveals its 其他银行 names
+  requestAnimationFrame(function(){renderDots()}); // defer to avoid geo transform race on wheel zoom
 }
 
 // ===== Bank detail (third level) =====
