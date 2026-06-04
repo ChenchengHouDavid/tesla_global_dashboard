@@ -1,6 +1,8 @@
-# 特斯拉全球金融合作伙伴与产品地图看板 — 项目交接文档
+# 特斯拉全球金融合作伙伴与产品地图看板
 
-> 最后更新：2026-06-03 | 作者：zhouzhou | 交接版本：V1.0
+> **在线访问（GitHub Pages）**：https://chenchenghoudavid.github.io/tesla_global_dashboard/
+
+> 最后更新：2026-06-04 | 作者：zhouzhou | 版本：V2.0（金融地图 + 销量总结 合并版）
 
 ---
 
